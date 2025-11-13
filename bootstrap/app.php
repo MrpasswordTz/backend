@@ -19,6 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Handle RouteNotFoundException for API routes (when auth middleware tries to redirect)
+        $exceptions->render(function (\Symfony\Component\Routing\Exception\RouteNotFoundException $e, $request) {
+            if ($request->is('api/*')) {
+                // If it's trying to redirect to login, return 401 instead
+                return response()->view('errors.401', [], 401);
+            }
+        });
+
         // Handle MethodNotAllowedHttpException (405) for API routes
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
             if ($request->is('api/*')) {
