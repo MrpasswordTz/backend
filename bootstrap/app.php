@@ -19,13 +19,45 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Handle authentication exceptions for API routes
+        // Handle MethodNotAllowedHttpException (405) for API routes
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->view('errors.405', [], 405);
+            }
+        });
+
+        // Handle NotFoundHttpException (404) for API routes
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->view('errors.404', [], 404);
+            }
+        });
+
+        // Handle AuthorizationException (403) for API routes
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->view('errors.403', [], 403);
+            }
+        });
+
+        // Handle AuthenticationException (401) for API routes
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
             if ($request->is('api/*')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthenticated.',
-                ], 401);
+                return response()->view('errors.401', [], 401);
+            }
+        });
+
+        // Handle ThrottleRequestsException (429) for API routes
+        $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->view('errors.429', [], 429);
+            }
+        });
+
+        // Handle HttpException with 500 status for API routes
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+            if ($request->is('api/*') && $e->getStatusCode() === 500) {
+                return response()->view('errors.500', [], 500);
             }
         });
     })->create();
