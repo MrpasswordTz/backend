@@ -381,7 +381,118 @@ DB_CONNECTION=sqlite
 # DB_DATABASE=your_database
 # DB_USERNAME=your_username
 # DB_PASSWORD=your_password
+
+# CORS Configuration (comma-separated list of allowed origins)
+# Default includes: localhost ports and https://mdukuzi-ai.vercel.app
+# Example: CORS_ALLOWED_ORIGINS=https://mdukuzi-ai.vercel.app,https://example.com
+CORS_ALLOWED_ORIGINS=
 ```
+
+## Frontend-Backend Communication (CORS)
+
+This backend is configured to communicate with frontend applications hosted on different domains. CORS (Cross-Origin Resource Sharing) is handled automatically.
+
+### Default Configuration
+
+By default, the following origins are allowed:
+- `http://localhost:5173` (Vite default)
+- `http://localhost:3000` (React/Next.js default)
+- `https://mdukuzi-ai.vercel.app` (Production Vercel deployment)
+- Any `*.vercel.app` subdomain (Vercel preview deployments)
+
+### Custom CORS Configuration
+
+To add additional allowed origins, set the `CORS_ALLOWED_ORIGINS` environment variable in your `.env` file:
+
+```env
+CORS_ALLOWED_ORIGINS=https://mdukuzi-ai.vercel.app,https://yourdomain.com,https://another-domain.com
+```
+
+**Note:** Separate multiple origins with commas (no spaces).
+
+### Frontend Configuration
+
+In your frontend application, configure the API base URL to point to your backend:
+
+**For Vercel deployments**, add an environment variable in your Vercel project settings:
+```
+VITE_API_URL=http://104.168.4.143:8000/api
+# or
+NEXT_PUBLIC_API_URL=http://104.168.4.143:8000/api
+```
+
+**Example frontend API configuration:**
+
+```javascript
+// For Vite/React
+const API_URL = import.meta.env.VITE_API_URL || 'http://104.168.4.143:8000/api';
+
+// For Next.js
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://104.168.4.143:8000/api';
+
+// Example API call
+fetch(`${API_URL}/chat/message`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  credentials: 'include', // Important for cookies/auth
+  body: JSON.stringify({ message: 'Hello' })
+});
+```
+
+### Important Notes
+
+1. **HTTPS to HTTP (Mixed Content)**: ⚠️ **This is likely your issue!** If your frontend is on HTTPS (Vercel) and backend is on HTTP, modern browsers **will block** the requests. You'll see "Network Error" or "Mixed Content" errors in the console.
+
+   **Solutions:**
+   
+   **Option A: Set up HTTPS for Backend (Recommended)**
+   - Use nginx with Let's Encrypt SSL certificate
+   - Or use a service like Cloudflare Tunnel (free)
+   - Or use a reverse proxy with SSL termination
+   
+   **Option B: Use Vercel Rewrites (Quick Fix)**
+   - Add a `vercel.json` to your frontend project:
+   ```json
+   {
+     "rewrites": [
+       {
+         "source": "/api/:path*",
+         "destination": "http://104.168.4.143:8000/api/:path*"
+       }
+     ]
+   }
+   ```
+   - Then use `/api` instead of `http://104.168.4.143:8000/api` in your frontend
+   
+   **Option C: Use Cloudflare Tunnel (Free)**
+   ```bash
+   # Install cloudflared
+   cloudflared tunnel --url http://localhost:8000
+   # This gives you an HTTPS URL like: https://xxxxx.trycloudflare.com
+   ```
+
+2. **Credentials**: The CORS middleware supports credentials (`Access-Control-Allow-Credentials: true`), so make sure to include `credentials: 'include'` in your frontend fetch requests.
+
+3. **Preflight Requests**: OPTIONS requests are automatically handled by the CORS middleware.
+
+### Troubleshooting Network Errors
+
+If you're getting "Network Error" when trying to connect from your Vercel frontend:
+
+1. **Check Browser Console**: Open DevTools (F12) → Console tab to see the exact error
+2. **Check Network Tab**: See if the request is being blocked or if it's reaching the server
+3. **Verify CORS Headers**: Check the response headers in Network tab for `Access-Control-Allow-Origin`
+4. **Test Backend Directly**: Try accessing `http://104.168.4.143:8000/api/` directly in your browser
+5. **Check Server Logs**: Look at Laravel logs in `storage/logs/laravel.log` for any errors
+
+**Common Issues:**
+- ❌ **Mixed Content**: HTTPS frontend → HTTP backend (browser blocks it)
+- ❌ **CORS not configured**: Missing `Access-Control-Allow-Origin` header
+- ❌ **Server not accessible**: Firewall blocking port 8000
+- ❌ **Wrong API URL**: Frontend pointing to wrong endpoint
 
 ## HuggingFace API Integration
 
